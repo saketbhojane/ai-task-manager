@@ -18,17 +18,32 @@ class Task(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     status: Mapped[TaskStatus] = mapped_column(
-        SQLEnum(TaskStatus, name="task_status", create_constraint=True),
+        SQLEnum(
+            TaskStatus,
+            name="task_status",
+            create_constraint=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         default=TaskStatus.TODO,
         nullable=False,
     )
     priority: Mapped[Priority] = mapped_column(
-        SQLEnum(Priority, name="priority", create_constraint=True),
+        SQLEnum(
+            Priority,
+            name="priority",
+            create_constraint=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         default=Priority.MEDIUM,
         nullable=False,
     )
     ai_suggested_priority: Mapped[Optional[Priority]] = mapped_column(
-        SQLEnum(Priority, name="priority", create_constraint=False),
+        SQLEnum(
+            Priority,
+            name="priority",
+            create_constraint=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=True,
     )
 

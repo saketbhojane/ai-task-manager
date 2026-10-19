@@ -19,13 +19,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create task_status enum
-    task_status_enum = sa.Enum('todo', 'in_progress', 'done', name='task_status')
-    task_status_enum.create(op.get_bind(), checkfirst=True)
-
-    # Create priority enum
-    priority_enum = sa.Enum('high', 'medium', 'low', name='priority')
-    priority_enum.create(op.get_bind(), checkfirst=True)
+    # Create enums using raw SQL with DO block for idempotency
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'task_status') THEN
+                CREATE TYPE task_status AS ENUM ('todo', 'in_progress', 'done');
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'priority') THEN
+                CREATE TYPE priority AS ENUM ('high', 'medium', 'low');
+            END IF;
+        END$$;
+    """)
 
     # Create users table
     op.create_table(
@@ -36,25 +41,26 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
 
-    # Create tasks table
-    op.create_table(
-        'tasks',
-        sa.Column('id', sa.Integer(), primary_key=True, index=True),
-        sa.Column('title', sa.String(200), nullable=False),
-        sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('status', sa.Enum('todo', 'in_progress', 'done', name='task_status', create_constraint=False), nullable=False, server_default='todo'),
-        sa.Column('priority', sa.Enum('high', 'medium', 'low', name='priority', create_constraint=False), nullable=False, server_default='medium'),
-        sa.Column('ai_suggested_priority', sa.Enum('high', 'medium', 'low', name='priority', create_constraint=False), nullable=True),
-        sa.Column('assignee_id', sa.Integer(), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
-    )
+    # Create tasks table using raw SQL to avoid SQLAlchemy enum auto-creation
+    op.execute("""
+        CREATE TABLE tasks (
+            id SERIAL PRIMARY KEY,
+            title VARCHAR(200) NOT NULL,
+            description TEXT,
+            status task_status NOT NULL DEFAULT 'todo',
+            priority priority NOT NULL DEFAULT 'medium',
+            ai_suggested_priority priority,
+            assignee_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX ix_tasks_id ON tasks(id);
+        CREATE INDEX ix_tasks_assignee_id ON tasks(assignee_id);
+    """)
 
 
 def downgrade() -> None:
-    op.drop_table('tasks')
+    op.execute("DROP TABLE IF EXISTS tasks;")
     op.drop_table('users')
-
-    # Drop enums
-    sa.Enum(name='task_status').drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name='priority').drop(op.get_bind(), checkfirst=True)
+    op.execute("DROP TYPE IF EXISTS task_status;")
+    op.execute("DROP TYPE IF EXISTS priority;")

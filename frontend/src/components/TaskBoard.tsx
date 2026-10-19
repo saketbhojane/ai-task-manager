@@ -11,9 +11,9 @@ interface TaskBoardProps {
 }
 
 const columns = [
-  { status: TaskStatus.TODO, title: 'To Do', bgColor: 'bg-gray-50' },
-  { status: TaskStatus.IN_PROGRESS, title: 'In Progress', bgColor: 'bg-blue-50' },
-  { status: TaskStatus.DONE, title: 'Done', bgColor: 'bg-green-50' },
+  { status: TaskStatus.TODO, title: 'To Do', bgColor: 'bg-sky-100', headerColor: 'bg-sky-500' },
+  { status: TaskStatus.IN_PROGRESS, title: 'In Progress', bgColor: 'bg-amber-100', headerColor: 'bg-amber-500' },
+  { status: TaskStatus.DONE, title: 'Done', bgColor: 'bg-emerald-100', headerColor: 'bg-emerald-500' },
 ]
 
 export function TaskBoard({ tasks, users, onEditTask, onDeleteTask, onStatusChange }: TaskBoardProps) {
@@ -42,16 +42,17 @@ export function TaskBoard({ tasks, users, onEditTask, onDeleteTask, onStatusChan
       {columns.map((column) => (
         <div
           key={column.status}
-          className={`${column.bgColor} rounded-lg p-4 min-h-[400px]`}
+          className={`${column.bgColor} rounded-lg overflow-hidden min-h-[400px]`}
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, column.status)}
         >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-700">{column.title}</h2>
-            <span className="bg-white px-2 py-1 rounded-full text-sm text-gray-600">
+          <div className={`${column.headerColor} px-4 py-3 flex items-center justify-between`}>
+            <h2 className="font-semibold text-white">{column.title}</h2>
+            <span className="bg-white/20 px-2 py-1 rounded-full text-sm text-white">
               {getTasksByStatus(column.status).length}
             </span>
           </div>
+          <div className="p-4">
           <div className="space-y-3">
             {getTasksByStatus(column.status).map((task) => (
               <div
@@ -68,6 +69,7 @@ export function TaskBoard({ tasks, users, onEditTask, onDeleteTask, onStatusChan
                 />
               </div>
             ))}
+          </div>
           </div>
         </div>
       ))}
