@@ -1,0 +1,85 @@
+version: '3.8'
+
+# Production docker-compose configuration
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: taskmanager-db-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-taskmanager}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taskmanager-network
+
+  backend:
+    image: ${REGISTRY:-}taskmanager-backend:${TAG:-latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: taskmanager-backend-prod
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-taskmanager}
+      DEBUG: "false"
+      CORS_ORIGINS: ${CORS_ORIGINS:-["https://your-domain.com"]}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-claude-sonnet-4-20250514}
+      AI_ENABLED: ${AI_ENABLED:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - taskmanager-network
+
+  frontend:
+    image: ${REGISTRY:-}taskmanager-frontend:${TAG:-latest}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: taskmanager-frontend-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - taskmanager-network
+
+  # Optional: Database migrations job
+  migrate:
+    image: ${REGISTRY:-}taskmanager-backend:${TAG:-latest}
+    container_name: taskmanager-migrate
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-taskmanager}
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - taskmanager-network
+    restart: "no"
+
+volumes:
+  postgres_data_prod:
+
+networks:
+  taskmanager-network:
+    driver: bridge
