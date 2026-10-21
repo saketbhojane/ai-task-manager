@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import type { Task, TaskCreate, TaskUpdate } from '../types'
+import type { Task, TaskCreate, TaskUpdate, UserCreate } from '../types'
 import { TaskStatus } from '../types'
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '../hooks/useTasks'
-import { useUsers } from '../hooks/useUsers'
+import { useUsers, useCreateUser } from '../hooks/useUsers'
 import { useAIStatus, useSummarizeTasks } from '../hooks/useAI'
-import { TaskBoard, TaskForm, Modal } from '../components'
+import { TaskBoard, TaskForm, Modal, UserForm } from '../components'
 
 export function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -12,6 +12,7 @@ export function Dashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null)
   const [showSummary, setShowSummary] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false)
 
   const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useTasks()
   const { data: users = [] } = useUsers()
@@ -21,6 +22,7 @@ export function Dashboard() {
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
+  const createUser = useCreateUser()
 
   const isAIAvailable = aiStatus?.enabled && aiStatus?.configured
 
@@ -81,6 +83,14 @@ export function Dashboard() {
     })
   }
 
+  const handleCreateUser = (data: UserCreate) => {
+    createUser.mutate(data, {
+      onSuccess: () => {
+        setIsUserModalOpen(false)
+      },
+    })
+  }
+
   if (tasksLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -118,6 +128,15 @@ export function Dashboard() {
                   {summarizeTasks.isPending ? 'Generating...' : 'AI Summary'}
                 </button>
               )}
+              <button
+                onClick={() => setIsUserModalOpen(true)}
+                className="inline-flex items-center px-4 py-2 border border-green-300 text-sm font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                Add Assignee
+              </button>
               <button
                 onClick={handleCreateClick}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -216,6 +235,19 @@ export function Dashboard() {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Add Assignee Modal */}
+      <Modal
+        isOpen={isUserModalOpen}
+        onClose={() => setIsUserModalOpen(false)}
+        title="Add Assignee"
+      >
+        <UserForm
+          onSubmit={handleCreateUser}
+          onCancel={() => setIsUserModalOpen(false)}
+          isLoading={createUser.isPending}
+        />
       </Modal>
     </div>
   )
