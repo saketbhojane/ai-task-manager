@@ -39,3 +39,12 @@ def get_user(
 ) -> UserResponse:
     """Get a user by ID."""
     return service.get_user(user_id)
+
+
+@router.delete("/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    service: UserService = Depends(get_user_service),
+) -> None:
+    """Delete a user by ID."""
+    service.delete_user(user_id)

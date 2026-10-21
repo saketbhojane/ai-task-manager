@@ -47,3 +47,9 @@ class UserService:
     def get_user_by_email(self, email: str) -> User | None:
         """Get a user by email."""
         return self.db.query(User).filter(User.email == email).first()
+
+    def delete_user(self, user_id: int) -> None:
+        """Delete a user by ID."""
+        user = self.get_user(user_id)
+        self.db.delete(user)
+        self.db.commit()

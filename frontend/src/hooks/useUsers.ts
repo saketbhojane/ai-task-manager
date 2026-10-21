@@ -27,3 +27,15 @@ export function useCreateUser() {
     },
   })
 }
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) => userApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+    },
+  })
+}

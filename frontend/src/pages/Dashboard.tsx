@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import type { Task, TaskCreate, TaskUpdate, UserCreate } from '../types'
+import type { Task, TaskCreate, TaskUpdate, UserCreate, User } from '../types'
 import { TaskStatus } from '../types'
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '../hooks/useTasks'
-import { useUsers, useCreateUser } from '../hooks/useUsers'
+import { useUsers, useCreateUser, useDeleteUser } from '../hooks/useUsers'
 import { useAIStatus, useSummarizeTasks } from '../hooks/useAI'
 import { TaskBoard, TaskForm, Modal, UserForm } from '../components'
 
@@ -13,6 +13,7 @@ export function Dashboard() {
   const [showSummary, setShowSummary] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
   const [isUserModalOpen, setIsUserModalOpen] = useState(false)
+  const [deleteUserConfirm, setDeleteUserConfirm] = useState<User | null>(null)
 
   const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useTasks()
   const { data: users = [] } = useUsers()
@@ -23,6 +24,7 @@ export function Dashboard() {
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
   const createUser = useCreateUser()
+  const deleteUser = useDeleteUser()
 
   const isAIAvailable = aiStatus?.enabled && aiStatus?.configured
 
@@ -86,9 +88,19 @@ export function Dashboard() {
   const handleCreateUser = (data: UserCreate) => {
     createUser.mutate(data, {
       onSuccess: () => {
-        setIsUserModalOpen(false)
+        // Keep modal open to show the new user in the list
       },
     })
+  }
+
+  const handleConfirmDeleteUser = () => {
+    if (deleteUserConfirm) {
+      deleteUser.mutate(deleteUserConfirm.id, {
+        onSuccess: () => {
+          setDeleteUserConfirm(null)
+        },
+      })
+    }
   }
 
   if (tasksLoading) {
@@ -133,9 +145,9 @@ export function Dashboard() {
                 className="inline-flex items-center px-4 py-2 border border-green-300 text-sm font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
-                Add Assignee
+                Manage Assignees
               </button>
               <button
                 onClick={handleCreateClick}
@@ -237,17 +249,77 @@ export function Dashboard() {
         </div>
       </Modal>
 
-      {/* Add Assignee Modal */}
+      {/* Manage Assignees Modal */}
       <Modal
         isOpen={isUserModalOpen}
         onClose={() => setIsUserModalOpen(false)}
-        title="Add Assignee"
+        title="Manage Assignees"
       >
-        <UserForm
-          onSubmit={handleCreateUser}
-          onCancel={() => setIsUserModalOpen(false)}
-          isLoading={createUser.isPending}
-        />
+        <div className="space-y-6">
+          {/* Existing Users List */}
+          {users.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Current Assignees</h3>
+              <ul className="divide-y divide-gray-200 border border-gray-200 rounded-md">
+                {users.map((user) => (
+                  <li key={user.id} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                      <p className="text-sm text-gray-500">{user.email}</p>
+                    </div>
+                    <button
+                      onClick={() => setDeleteUserConfirm(user)}
+                      className="text-red-600 hover:text-red-800 p-1"
+                      title="Delete assignee"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Add New User Form */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Add New Assignee</h3>
+            <UserForm
+              onSubmit={handleCreateUser}
+              onCancel={() => setIsUserModalOpen(false)}
+              isLoading={createUser.isPending}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete User Confirmation Modal */}
+      <Modal
+        isOpen={!!deleteUserConfirm}
+        onClose={() => setDeleteUserConfirm(null)}
+        title="Delete Assignee"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Are you sure you want to delete "{deleteUserConfirm?.name}"? Tasks assigned to this person will become unassigned.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setDeleteUserConfirm(null)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDeleteUser}
+              disabled={deleteUser.isPending}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleteUser.isPending ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

@@ -24,6 +24,10 @@ export const userApi = {
     const response = await api.get<User>(`/users/${id}`)
     return response.data
   },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/users/${id}`)
+  },
 }
 
 // Task API
