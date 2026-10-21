@@ -18,7 +18,8 @@ class Settings(BaseSettings):
 
     # AI Configuration
     anthropic_api_key: Optional[str] = None
-    ai_model: str = "claude-sonnet-4-20250514"
+    anthropic_workspace_id: Optional[str] = None
+    ai_model: str = "claude-opus-4-5-20251101"
     ai_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")

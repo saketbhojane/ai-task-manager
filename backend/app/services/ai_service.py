@@ -16,7 +16,15 @@ class AIService:
         if not settings.anthropic_api_key:
             self.client = None
         else:
-            self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+            # Include workspace ID if provided (for user-level API keys)
+            default_headers = {}
+            if settings.anthropic_workspace_id:
+                default_headers["anthropic-workspace-id"] = settings.anthropic_workspace_id
+
+            self.client = anthropic.Anthropic(
+                api_key=settings.anthropic_api_key,
+                default_headers=default_headers if default_headers else None
+            )
 
     def _check_enabled(self) -> None:
         """Check if AI is enabled and configured."""
